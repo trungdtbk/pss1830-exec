@@ -1,0 +1,5 @@
+pytest
+pytest-mock
+pytest-cov
+pylint
+sshim==1.3.2
