@@ -60,9 +60,13 @@ def run(config):
     pss = PSSRoot(config['host'], config['port'], config['user'], config['pass'])
     pss.TIMEOUT = config['timeout']
     pss.open()
-    create_debug_dump(pss)
-    get_debug_dump(pss, config['dest'])
-    clean_debug_dump(pss)
+    try:
+        create_debug_dump(pss)
+        get_debug_dump(pss, config['dest'])
+    except Exception as e:
+        print(e)
+    finally:
+        clean_debug_dump(pss)
     pss.close()
 
 def main():
