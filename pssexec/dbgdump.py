@@ -16,7 +16,7 @@ def get_parser():
     parser.add_argument('--port', default=5122, help="Port. Default: 5122", type=int)
     parser.add_argument('-u', '--user', help="Login user. Default: root", default="root", type=str)
     parser.add_argument('-p', '--pass', help="Root password", required=True)
-    parser.add_argument('-d', '--dest', help="Destination directory. Default: current dir", default=".")
+    parser.add_argument('-d', '--dest', help="Destination directory. Default: current dir")
     parser.add_argument('-w', '--timeout', help="Timeout to wait for result. Default: 20 secs", default=15, type=int)
     return parser
 
@@ -27,12 +27,15 @@ def get_config(args):
 def progress(size, sent):
     sys.stdout.write("Transfered: %.2f%%   \r" % (float(sent)/float(size)*100))
 
-def get_debug_dump(pss, dest='.'):
+def get_debug_dump(pss, dest=None):
     print('Collecting debug dump\n')
     scp = pss.client.open_sftp()
     scp.chdir('/tmp/debug')
     files = scp.listdir()
-    path = os.path.join(dest, 'debugdump-%s' % pss.host)
+    if dest:
+        path = dest
+    else:
+        path = os.path.join('.', 'Debugdump-%s' % pss.host)
     try:
         os.mkdir(path)
     except:
