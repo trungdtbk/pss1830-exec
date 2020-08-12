@@ -1,3 +1,6 @@
+"""
+"""
+import os
 from common import PSSCommon
 from common import PSSException
 
@@ -44,6 +47,23 @@ class PSSRoot(PSSCommon):
             self._get_prompt()
             if not (self.prompt and 'ACT' in self.prompt):
                 raise PSSException('Failed to get ACT prompt when logging out of STDBY EC')
+
+    def get_file(self, remotepath, localpath, callback=None, recursive=True):
+        """Get files from the NE to the local machine
+        """
+        self.logger.debug('Openning SFTP')
+        scp = self.client.open_sftp()
+        if recursive:
+            scp.chdir(remotepath)
+            for fname in scp.listdir():
+                remote = os.path.join(remotepath, fname)
+                local = os.path.join(localpath, fname)
+                self.logger.debug('Transferring: %s to %s' % (remote, local))
+                scp.get(remote, local, callback)
+        else:
+            self.logger.debug('Transferring: %s to %s' % (remotepath, localpath))
+            scp.get(remotepath, localpath, callback)
+        scp.close()
 
     def _get_active_ec(self):
         if self.prompt:
