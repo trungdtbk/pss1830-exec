@@ -16,8 +16,9 @@ def get_parser():
     parser.add_argument('--port', default=5122, help="Port. Default: 5122", type=int)
     parser.add_argument('-u', '--user', help="Login user. Default: root", default="root", type=str)
     parser.add_argument('-p', '--pass', help="Root password", required=True)
-    parser.add_argument('-d', '--dest', help="Destination directory. Default: current dir")
-    parser.add_argument('-w', '--timeout', help="Timeout to wait for result. Default: 20 secs", default=15, type=int)
+    parser.add_argument('-d', '--dest', help="Destination directory. Default: current dir", default='.')
+    parser.add_argument('-a', '--all', help="Collect all dumps using all_dump", action="store_true")
+    parser.add_argument('-w', '--timeout', help="Timeout to wait for result (default: 30 secs)", default=30, type=int)
     return parser
 
 def get_config(args):
@@ -27,50 +28,74 @@ def get_config(args):
 def progress(size, sent):
     sys.stdout.write("Transfered: %.2f%%   \r" % (float(sent)/float(size)*100))
 
-def get_debug_dump(pss, dest=None):
-    print('Collecting debug dump\n')
-    scp = pss.client.open_sftp()
-    scp.chdir('/tmp/debug')
-    files = scp.listdir()
-    if dest:
-        path = dest
-    else:
-        path = os.path.join('.', 'Debugdump-%s' % pss.host)
-    try:
-        os.mkdir(path)
-    except:
-        pass
-    for f in files:
-        local_file = os.path.join(path, f)
-        print('Downloading: %s' % f)
-        scp.get('/tmp/debug/%s' % f, local_file, progress)
-    print('\nCollected debugdump to: %s' % path)
-
-def create_debug_dump(pss):
-    print('Creating debug dump')
-    for line in pss.execute('/pureNeApp/EC/debug_dump'):
+def execute(pss, command):
+    for line in pss.execute(command):
         print(line, end="")
-    print('\nDebug dump created')
+    print("\n")
 
-def clean_debug_dump(pss):
-    print('Removing debug dump')
-    for l in pss.execute('/pureNeApp/EC/debug_dump clean'):
-        print(l)
-    print('Removed debugdump')
+def collect_debug_dump(pss, dest):
+
+    def create_debug_dump(pss):
+        print('Creating debug_dump')
+        execute(pss, '/pureNeApp/EC/debug_dump')
+        print('Created debug_dump')
+
+    def get_debug_dump(pss, dest):
+        print('Transferring debug_dump')
+        pss.get_file('/tmp/debug', dest, callback=progress)
+        print('Transferred debug_dump')
+
+    def clean_debug_dump(pss):
+        print('Cleaning debug_dump')
+        execute(pss, '/pureNeApp/EC/debug_dump clean')
+        print('Cleaned debug_dump')
+
+    try:
+        create_debug_dump(pss)
+        get_debug_dump(pss, dest)
+        clean_debug_dump(pss)
+    except Exception as e:
+        print(e)
+    finally:
+        clean_debug_dump(pss)
+        pss.close()
+
+def collect_all_dump(pss, dest):
+
+    def create_all_dump(pss):
+        print('Creating all_dump')
+        execute(pss, '/pureNeApp/EC/all_dump')
+        print('Created all_dump')
+
+    def get_all_dump(pss, dest):
+        print('Transferring all_dump')
+        pss.get_file('/pureNeApp/scratch/', dest, callback=progress)
+        print('Transferred all_dump')
+
+    def clean_all_dump(pss):
+        print('Cleaning all_dump')
+        execute(pss, 'cd /pureNeApp/scratch; rm -rf /pureNeApp/scratch/*')
+        print('Cleaned all_dump')
+    
+    try:
+        create_all_dump(pss)
+        get_all_dump(pss, dest)
+        clean_all_dump(pss)
+    except Exception as e:
+        print(e)
+    finally:
+        clean_all_dump(pss)
+        pss.close()
 
 def run(config):
     print(config)
     pss = PSSRoot(config['host'], config['port'], config['user'], config['pass'])
     pss.TIMEOUT = config['timeout']
     pss.open()
-    try:
-        create_debug_dump(pss)
-        get_debug_dump(pss, config['dest'])
-    except Exception as e:
-        print(e)
-    finally:
-        clean_debug_dump(pss)
-    pss.close()
+    if config['all']:
+        collect_all_dump(pss, config['dest'])
+    else:
+        collect_debug_dump(pss, config['dest'])
 
 def main():
     parser = get_parser()
