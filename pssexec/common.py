@@ -17,6 +17,7 @@ class PSSCommon(object):
 
     TIMEOUT = 30
     PROMPT_RE = None
+    CTRL_C = '\x03'
 
     logger = logging.getLogger(__name__)
 
